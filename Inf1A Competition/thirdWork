@@ -1,0 +1,65 @@
+import Graphics.Gloss
+import Graphics.Gloss.Juicy (loadJuicyBMP)
+import System.Random (randomRIO)
+import Data.Maybe (fromMaybe)
+import Graphics.Gloss.Data.ViewPort (ViewPort)
+
+data Object = Object {position :: (Float, Float), velocity :: (Float, Float), time :: Float}
+data Simulate = Simulate {passed :: Float, objects :: [Object]}
+
+-- Load the background image
+background :: IO Picture
+background = do
+    maybePic <- loadJuicyBMP "background.bmp"
+    return $ fromMaybe blank maybePic
+
+-- Starting objects in motion
+start :: [Object]
+start = [Object (-100, -100) (0.8, 0.12) 1.5, Object (100, 100) (-0.8, -0.12) 5.0]
+
+-- Initial simulation state
+starts :: Simulate
+starts = Simulate 0 start
+
+-- Define a speed factor to slow down the movement
+let speedFactor = 0.1  -- Adjust this value to control the speed
+
+-- Use circularPath with adjusted speed
+(x', y') = circularPath radius (speedFactor * sqrt (vx^2 + vy^2)) dt
+
+
+-- Circular path logic
+circularPath :: Float -> Float -> Float -> (Float, Float)
+circularPath radius speed time = (x, y)
+  where
+    angle = time * speed
+    x = radius * cos angle
+    y = radius * sin angle
+
+-- Render function to display background and objects
+render :: Picture -> Simulate -> Picture
+render bg (Simulate current objs) = Pictures [bg, Pictures (map (drawObject current) objs)]
+  where
+    drawObject :: Float -> Object -> Picture
+    drawObject cu (Object (x, y) _ _) = translate x y $ color red $ circleSolid 5
+
+-- Update function for animation with finer speed control
+update :: ViewPort -> Float -> Simulate -> Simulate
+update _ dt (Simulate t objs) = Simulate (t + (0.05 * dt)) (map (moveObject (0.05 * dt)) objs)
+  where
+    moveObject :: Float -> Object -> Object
+    moveObject dt obj@(Object (x, y) (vx, vy) timeRemaining) = 
+      Object (x + vx * dt, y + vy * dt) (vx, vy) timeRemaining
+
+
+-- Main function to load background and start the simulation
+main :: IO ()
+main = do
+    bg <- background
+    simulate
+        (InWindow "Moving Light with Background" (80, 60) (0.1, 0.1))
+        black
+        0.1
+        starts
+        (render bg)
+        update
